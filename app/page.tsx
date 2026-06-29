@@ -9,6 +9,9 @@ import type {
 } from "@/types/slide";
 import { createElementId } from "@/types/slide";
 import { apiPostForm, apiPostJson } from "@/lib/api-client";
+import {
+  validateUploadSize,
+} from "@/lib/response-utils";
 import { UploadPanel } from "@/components/UploadPanel";
 import { SlidePreview } from "@/components/SlidePreview";
 import { SlideNavigator } from "@/components/SlideNavigator";
@@ -32,6 +35,8 @@ type AnalyzeResponse = {
   analyzeAll?: boolean;
   truncated?: boolean;
   truncatedMessage?: string;
+  pptxBase64?: string;
+  pptxFilename?: string;
 };
 
 type GenerateResponse = {
@@ -86,6 +91,11 @@ export default function Home() {
 
   const handleAnalyze = async () => {
     if (!file) return;
+    const sizeError = validateUploadSize(file.size);
+    if (sizeError) {
+      setError(sizeError);
+      return;
+    }
     setAnalyzing(true);
     setError(null);
     setInfo(null);
@@ -104,7 +114,19 @@ export default function Home() {
       setActiveSlideIndex(0);
       setDiagnostics(data.diagnostics);
       setSlideCount(data.slideCount ?? data.slides.length);
-      setPptxBase64(null);
+      if (data.pptxBase64) {
+        setPptxBase64(data.pptxBase64);
+        setDownloadFilename(data.pptxFilename ?? "editable-presentation.pptx");
+        if (!data.truncated) {
+          setInfo(
+            data.slides.length > 1
+              ? `Editable PPTX ready (${data.slides.length} slides). Download now or edit slides and regenerate.`
+              : "Editable PPTX ready. Download now or edit and regenerate."
+          );
+        }
+      } else {
+        setPptxBase64(null);
+      }
       if (data.truncated && data.truncatedMessage) {
         setInfo(data.truncatedMessage);
       }

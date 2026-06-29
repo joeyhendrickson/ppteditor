@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { MAX_UPLOAD_BYTES } from "@/lib/response-utils";
 
 const ACCEPT =
   ".pptx,.pdf,.png,.jpg,.jpeg,.webp,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf,image/*";
@@ -69,6 +70,9 @@ export function UploadPanel({
         {selectedFile && (
           <p className="mt-1 text-xs text-slate-400">
             {(selectedFile.size / 1024).toFixed(1)} KB
+            {selectedFile.size > MAX_UPLOAD_BYTES && (
+              <span className="text-red-600"> — exceeds 4MB upload limit</span>
+            )}
           </p>
         )}
       </div>

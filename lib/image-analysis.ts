@@ -1,10 +1,13 @@
 import sharp from "sharp";
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { readFileAsBuffer } from "./file-utils";
 
 const EMU_PER_INCH = 914400;
 const DEFAULT_SLIDE_WIDTH_IN = 13.333;
 const DEFAULT_SLIDE_HEIGHT_IN = 7.5;
+
+async function loadPdfJs() {
+  return import("pdfjs-dist/legacy/build/pdf.mjs");
+}
 
 export async function preprocessImage(
   input: Buffer,
@@ -34,6 +37,7 @@ export async function pdfPageToImage(
   pageIndex: number,
   scale = 2
 ): Promise<{ buffer: Buffer; base64: string; width: number; height: number }> {
+  const pdfjs = await loadPdfJs();
   const data = await readFileAsBuffer(pdfPath);
   const loadingTask = pdfjs.getDocument({ data, useSystemFonts: true });
   const pdf = await loadingTask.promise;
@@ -47,7 +51,6 @@ export async function pdfPageToImage(
   await page.render({
     canvasContext: context as unknown as CanvasRenderingContext2D,
     viewport,
-    // pdfjs types expect canvas property in newer versions
     canvas: canvas as unknown as HTMLCanvasElement,
   }).promise;
 
@@ -61,6 +64,7 @@ export async function pdfPageToImage(
 }
 
 export async function getPdfPageCount(pdfPath: string): Promise<number> {
+  const pdfjs = await loadPdfJs();
   const data = await readFileAsBuffer(pdfPath);
   const pdf = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
   return pdf.numPages;

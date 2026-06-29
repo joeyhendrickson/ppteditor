@@ -46,7 +46,7 @@ export function GenerationControls({
           disabled={!canAnalyze || analyzing}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {analyzing ? "Analyzing…" : "Analyze Slide"}
+          {analyzing ? "Analyzing…" : "Analyze"}
         </button>
         <button
           type="button"
