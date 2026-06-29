@@ -15,6 +15,7 @@ interface GenerationControlsProps {
   onVisibilityChange: (v: VisibilityFilter) => void;
   onAddElement: () => void;
   diagnostics: DiagnosticsReport | null;
+  deckSlideCount?: number;
 }
 
 export function GenerationControls({
@@ -30,6 +31,7 @@ export function GenerationControls({
   onVisibilityChange,
   onAddElement,
   diagnostics,
+  deckSlideCount = 0,
 }: GenerationControlsProps) {
   const toggle = (key: keyof VisibilityFilter) => {
     onVisibilityChange({ ...visibility, [key]: !visibility[key] });
@@ -52,7 +54,11 @@ export function GenerationControls({
           disabled={!canGenerate || generating}
           className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
         >
-          {generating ? "Generating…" : "Generate Editable PowerPoint"}
+          {generating
+            ? "Generating…"
+            : deckSlideCount > 1
+              ? `Generate PPTX (${deckSlideCount} slides)`
+              : "Generate Editable PowerPoint"}
         </button>
         <button
           type="button"

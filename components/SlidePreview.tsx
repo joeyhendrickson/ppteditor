@@ -9,6 +9,7 @@ interface SlidePreviewProps {
   visibility: VisibilityFilter;
   selectedId?: string | null;
   onSelectElement?: (id: string) => void;
+  slideLabel?: string;
 }
 
 export function SlidePreview({
@@ -17,6 +18,7 @@ export function SlidePreview({
   visibility,
   selectedId,
   onSelectElement,
+  slideLabel,
 }: SlidePreviewProps) {
   if (!analysis) {
     return (
@@ -41,7 +43,9 @@ export function SlidePreview({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-slate-800">Slide preview</h2>
+        <h2 className="text-sm font-semibold text-slate-800">
+          Slide preview{slideLabel ? ` — ${slideLabel}` : ""}
+        </h2>
         {referenceImage && (
           <span className="text-xs text-slate-400">Reference overlay available</span>
         )}

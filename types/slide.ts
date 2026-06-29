@@ -68,6 +68,12 @@ export interface SlideAnalysis {
   reference_image?: string; // base64 preview of source
 }
 
+export interface SlideDeckAnalysis {
+  slides: SlideAnalysis[];
+  slide_count: number;
+  source_type?: SlideAnalysis["source_type"];
+}
+
 export interface DiagnosticsIssue {
   type:
     | "missing_text"

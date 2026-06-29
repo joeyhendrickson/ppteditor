@@ -442,3 +442,14 @@ export async function getPptxSlideCount(pptxBuffer: Buffer): Promise<number> {
   const paths = await getSlidePaths(zip);
   return paths.length;
 }
+
+export async function parseAllPptxSlides(
+  pptxBuffer: Buffer
+): Promise<SlideAnalysis[]> {
+  const count = await getPptxSlideCount(pptxBuffer);
+  const slides: SlideAnalysis[] = [];
+  for (let i = 0; i < count; i++) {
+    slides.push(await parsePptxFile(pptxBuffer, i));
+  }
+  return slides;
+}

@@ -11,6 +11,8 @@ interface UploadPanelProps {
   slideIndex: number;
   slideCount: number;
   onSlideIndexChange: (index: number) => void;
+  analyzeAll: boolean;
+  onAnalyzeAllChange: (value: boolean) => void;
   disabled?: boolean;
 }
 
@@ -20,6 +22,8 @@ export function UploadPanel({
   slideIndex,
   slideCount,
   onSlideIndexChange,
+  analyzeAll,
+  onAnalyzeAllChange,
   disabled,
 }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,11 +36,16 @@ export function UploadPanel({
     [onFileSelect]
   );
 
+  const isDeckFile =
+    selectedFile &&
+    (selectedFile.name.toLowerCase().endsWith(".pptx") ||
+      selectedFile.name.toLowerCase().endsWith(".pdf"));
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-800">Upload slide</h2>
+      <h2 className="text-sm font-semibold text-slate-800">Upload presentation</h2>
       <p className="mt-1 text-xs text-slate-500">
-        PPTX, PDF, PNG, JPG, JPEG, or WEBP
+        Full PPTX/PDF deck or single slide image
       </p>
 
       <div
@@ -64,10 +73,29 @@ export function UploadPanel({
         )}
       </div>
 
-      {slideCount > 1 && (
+      {isDeckFile && (
+        <label className="mt-4 flex items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={analyzeAll}
+            onChange={(e) => onAnalyzeAllChange(e.target.checked)}
+            disabled={disabled}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-medium">Analyze entire presentation</span>
+            <span className="block text-xs text-slate-500 mt-0.5">
+              All slides/pages → one editable PPTX. PPTX uses native parsing
+              (fast). PDF uses vision per page (slower).
+            </span>
+          </span>
+        </label>
+      )}
+
+      {isDeckFile && !analyzeAll && slideCount > 1 && (
         <div className="mt-4">
           <label className="text-xs font-medium text-slate-600">
-            Slide / page ({slideCount} total)
+            Single slide / page ({slideCount} total)
           </label>
           <input
             type="number"
@@ -83,6 +111,13 @@ export function UploadPanel({
             disabled={disabled}
           />
         </div>
+      )}
+
+      {selectedFile?.name.toLowerCase().endsWith(".ppt") && (
+        <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md p-2">
+          Legacy .ppt is not supported. Open in PowerPoint/Keynote and export as
+          .pptx.
+        </p>
       )}
     </div>
   );

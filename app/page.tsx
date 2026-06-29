@@ -8,8 +8,10 @@ import type {
   VisibilityFilter,
 } from "@/types/slide";
 import { createElementId } from "@/types/slide";
+import { apiPostForm, apiPostJson } from "@/lib/api-client";
 import { UploadPanel } from "@/components/UploadPanel";
 import { SlidePreview } from "@/components/SlidePreview";
+import { SlideNavigator } from "@/components/SlideNavigator";
 import { ElementsTable } from "@/components/ElementsTable";
 import { LayerPanel } from "@/components/LayerPanel";
 import { JsonEditor } from "@/components/JsonEditor";
@@ -22,49 +24,90 @@ const defaultVisibility: VisibilityFilter = {
   images: true,
 };
 
+type AnalyzeResponse = {
+  slides: SlideAnalysis[];
+  analysis: SlideAnalysis;
+  diagnostics: DiagnosticsReport;
+  slideCount: number;
+  analyzeAll?: boolean;
+  truncated?: boolean;
+  truncatedMessage?: string;
+};
+
+type GenerateResponse = {
+  pptxBase64: string;
+  diagnostics: DiagnosticsReport;
+  filename: string;
+  slideCount: number;
+};
+
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [slideIndex, setSlideIndex] = useState(0);
   const [slideCount, setSlideCount] = useState(1);
-  const [analysis, setAnalysis] = useState<SlideAnalysis | null>(null);
+  const [slides, setSlides] = useState<SlideAnalysis[]>([]);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [analyzeAll, setAnalyzeAll] = useState(true);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<VisibilityFilter>(defaultVisibility);
   const [analyzing, setAnalyzing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [pptxBase64, setPptxBase64] = useState<string | null>(null);
+  const [downloadFilename, setDownloadFilename] = useState("editable-slide.pptx");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const analysis = slides[activeSlideIndex] ?? null;
 
   const handleFileSelect = useCallback((f: File) => {
     setFile(f);
-    setAnalysis(null);
+    setSlides([]);
     setDiagnostics(null);
     setPptxBase64(null);
     setSlideIndex(0);
+    setActiveSlideIndex(0);
     setSlideCount(1);
     setError(null);
+    setInfo(null);
+    const isDeck =
+      f.name.toLowerCase().endsWith(".pptx") ||
+      f.name.toLowerCase().endsWith(".pdf");
+    setAnalyzeAll(isDeck);
   }, []);
+
+  const updateSlideAt = (index: number, updated: SlideAnalysis) => {
+    setSlides((prev) => {
+      const next = [...prev];
+      next[index] = updated;
+      return next;
+    });
+  };
 
   const handleAnalyze = async () => {
     if (!file) return;
     setAnalyzing(true);
     setError(null);
+    setInfo(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("slideIndex", String(slideIndex));
+      formData.append("analyzeAll", analyzeAll ? "true" : "false");
 
-      const res = await fetch("/api/analyze-slide", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Analysis failed");
+      const data = await apiPostForm<AnalyzeResponse>(
+        "/api/analyze-slide",
+        formData
+      );
 
-      setAnalysis(data.analysis);
+      setSlides(data.slides);
+      setActiveSlideIndex(0);
       setDiagnostics(data.diagnostics);
-      setSlideCount(data.slideCount ?? 1);
+      setSlideCount(data.slideCount ?? data.slides.length);
       setPptxBase64(null);
+      if (data.truncated && data.truncatedMessage) {
+        setInfo(data.truncatedMessage);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Analysis failed");
     } finally {
@@ -73,19 +116,16 @@ export default function Home() {
   };
 
   const handleGenerate = async () => {
-    if (!analysis) return;
+    if (slides.length === 0) return;
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch("/api/generate-pptx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis }),
+      const data = await apiPostJson<GenerateResponse>("/api/generate-pptx", {
+        analyses: slides,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Generation failed");
 
       setPptxBase64(data.pptxBase64);
+      setDownloadFilename(data.filename);
       setDiagnostics(data.diagnostics);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
@@ -103,14 +143,14 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "editable-slide.pptx";
+    a.download = downloadFilename;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const updateElement = (id: string, patch: Partial<SlideElement>) => {
     if (!analysis) return;
-    setAnalysis({
+    updateSlideAt(activeSlideIndex, {
       ...analysis,
       elements: analysis.elements.map((el) =>
         el.id === id ? { ...el, ...patch } as SlideElement : el
@@ -120,7 +160,7 @@ export default function Home() {
 
   const deleteElement = (id: string) => {
     if (!analysis) return;
-    setAnalysis({
+    updateSlideAt(activeSlideIndex, {
       ...analysis,
       elements: analysis.elements.filter((el) => el.id !== id),
     });
@@ -146,7 +186,7 @@ export default function Home() {
       y: el.y + 0.2,
       z_index: el.z_index + 1,
     } as SlideElement;
-    setAnalysis({
+    updateSlideAt(activeSlideIndex, {
       ...analysis,
       elements: [...analysis.elements, newEl],
     });
@@ -171,7 +211,7 @@ export default function Home() {
       confidence: 1,
       visible: true,
     };
-    setAnalysis({
+    updateSlideAt(activeSlideIndex, {
       ...analysis,
       elements: [...analysis.elements, newEl],
     });
@@ -186,8 +226,8 @@ export default function Home() {
             Editable Slide Converter
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Rebuild slides as editable PowerPoint shapes and text — not flattened
-            screenshots.
+            Upload a full PPTX/PDF deck or a single slide — rebuild as editable
+            PowerPoint objects, not flattened screenshots.
           </p>
         </div>
       </header>
@@ -196,6 +236,11 @@ export default function Home() {
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+          </div>
+        )}
+        {info && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {info}
           </div>
         )}
 
@@ -207,8 +252,18 @@ export default function Home() {
               slideIndex={slideIndex}
               slideCount={slideCount}
               onSlideIndexChange={setSlideIndex}
+              analyzeAll={analyzeAll}
+              onAnalyzeAllChange={setAnalyzeAll}
               disabled={analyzing}
             />
+            {slides.length > 1 && (
+              <SlideNavigator
+                slideCount={slides.length}
+                activeIndex={activeSlideIndex}
+                onSelect={setActiveSlideIndex}
+                disabled={analyzing}
+              />
+            )}
             <GenerationControls
               onAnalyze={handleAnalyze}
               onGenerate={handleGenerate}
@@ -216,12 +271,13 @@ export default function Home() {
               analyzing={analyzing}
               generating={generating}
               canAnalyze={Boolean(file)}
-              canGenerate={Boolean(analysis)}
+              canGenerate={slides.length > 0}
               canDownload={Boolean(pptxBase64)}
               visibility={visibility}
               onVisibilityChange={setVisibility}
               onAddElement={addTextElement}
               diagnostics={diagnostics}
+              deckSlideCount={slides.length}
             />
           </div>
 
@@ -232,6 +288,11 @@ export default function Home() {
               visibility={visibility}
               selectedId={selectedId}
               onSelectElement={setSelectedId}
+              slideLabel={
+                slides.length > 1
+                  ? `Slide ${activeSlideIndex + 1} of ${slides.length}`
+                  : undefined
+              }
             />
             {pptxBase64 && analysis?.reference_image && (
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -239,19 +300,19 @@ export default function Home() {
                   Quality comparison
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  Left: original reference. Right: reconstructed element layout
-                  (preview). Open the downloaded PPTX in PowerPoint for the
-                  final editable result.
+                  Left: original reference. Right: reconstructed layout preview.
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={analysis.reference_image}
                     alt="Original"
                     className="rounded border border-slate-200"
                   />
                   <div className="rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-500 flex items-center justify-center">
-                    Reconstructed layout shown above — download PPTX to edit in
-                    PowerPoint
+                    {slides.length > 1
+                      ? `${slides.length} slides in deck — download PPTX to edit`
+                      : "Download PPTX to edit in PowerPoint"}
                   </div>
                 </div>
               </div>
@@ -281,7 +342,7 @@ export default function Home() {
           />
           <JsonEditor
             analysis={analysis}
-            onChange={(a) => setAnalysis(a)}
+            onChange={(a) => updateSlideAt(activeSlideIndex, a)}
           />
         </div>
       </div>
