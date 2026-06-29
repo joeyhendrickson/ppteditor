@@ -3,8 +3,13 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["sharp", "canvas", "pdfjs-dist"],
   },
-  webpack: (config) => {
-    config.resolve.alias.canvas = false;
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        canvas: false,
+      };
+    }
     return config;
   },
 };

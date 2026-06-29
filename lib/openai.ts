@@ -1,8 +1,4 @@
 import OpenAI from "openai";
-import type { SlideAnalysis } from "@/types/slide";
-import { DEFAULT_SLIDE } from "@/types/slide";
-
-import OpenAI from "openai";
 import type { SlideAnalysis, SlideElement } from "@/types/slide";
 import { DEFAULT_SLIDE } from "@/types/slide";
 

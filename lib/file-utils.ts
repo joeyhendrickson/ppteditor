@@ -1,8 +1,9 @@
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
-const TMP_ROOT = path.join(process.cwd(), "tmp", "uploads");
+const TMP_ROOT = path.join(os.tmpdir(), "ppteditor-uploads");
 
 export type SupportedExtension =
   | ".pptx"

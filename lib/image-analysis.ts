@@ -1,5 +1,4 @@
 import sharp from "sharp";
-import { createCanvas } from "canvas";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { readFileAsBuffer } from "./file-utils";
 
@@ -41,6 +40,7 @@ export async function pdfPageToImage(
   const page = await pdf.getPage(pageIndex + 1);
   const viewport = page.getViewport({ scale });
 
+  const { createCanvas } = await import("canvas");
   const canvas = createCanvas(viewport.width, viewport.height);
   const context = canvas.getContext("2d");
 
